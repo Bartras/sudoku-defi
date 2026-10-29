@@ -1,7 +1,7 @@
 # Sudoku – Le Défi 🧩
 
 Une grille de Sudoku à résoudre sur téléphone ou ordinateur, pour défier un collègue.
-Simple, sans compte, sans publicité, et qui marche même sans connexion une fois la page chargée.
+Simple, sans compte, sans publicité, et qui marche même sans connexion.
 
 **Jouer : https://bartras.github.io/sudoku-defi/**
 
@@ -34,6 +34,15 @@ Simple, sans compte, sans publicité, et qui marche même sans connexion une foi
 | `Suppr` / `Retour arrière` | Effacer la case |
 | `Ctrl` + `Z` | Annuler |
 
+## Installer sur son téléphone
+
+L'application est une **PWA** : elle s'installe depuis le navigateur, sans passer par un magasin d'applications.
+
+- **Android (Chrome, Brave…)** : ouvrir le lien, menu ⋮ puis *Installer l'application* (ou *Ajouter à l'écran d'accueil*).
+- **iPhone** : ouvrir le lien dans **Safari**, bouton Partager puis *Sur l'écran d'accueil*.
+
+Une fois installée, elle fonctionne sans connexion. Les données (partie en cours) restent sur le téléphone, rien n'est envoyé sur Internet.
+
 ## Pour les développeurs
 
 Pas de framework ni de compilation : un seul fichier HTML avec son CSS et son JavaScript.
@@ -41,6 +50,9 @@ Pas de framework ni de compilation : un seul fichier HTML avec son CSS et son Ja
 | Fichier | Rôle |
 | --- | --- |
 | `index.html` | Toute l'application (grille, règles, chrono, sauvegarde) |
+| `manifest.webmanifest` | Nom, couleurs et icônes pour l'installation |
+| `sw.js` | Service worker : fonctionnement hors connexion |
+| `icons/` | Icônes de l'application |
 
 Pour tester en local, servir le dossier avec un petit serveur, par exemple :
 
@@ -52,4 +64,4 @@ puis ouvrir `http://localhost:8000`.
 
 La grille est définie par la constante `PUZZLE` au début du script (81 caractères, `.` pour une case vide). Pour changer de grille, modifier cette chaîne et la clé `KEY` (sinon l'ancienne sauvegarde du navigateur est rechargée), ainsi que le titre affiché sous l'en-tête.
 
-Le site est publié avec **GitHub Pages**.
+Le site est publié avec **GitHub Pages**. Après une modification importante, augmenter le numéro de version du cache dans `sw.js` (`sudoku-vN`) pour forcer la mise à jour chez les utilisateurs.

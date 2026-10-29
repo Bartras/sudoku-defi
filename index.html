@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sudoku – Le Défi</title>
+<meta name="theme-color" content="#1f7ae0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sudoku">
 <style>
 :root{
   --bg:#f4f6f9;--card:#fff;--ink:#1c2430;--muted:#6b7686;--line:#c5cdd8;--thick:#2b3442;
@@ -245,6 +252,7 @@ document.addEventListener("keydown",e=>{
 if(!load())fresh();
 if(done){$("msg").textContent="Grille résolue en "+fmt(seconds)+" !";$("msg").className="win";}
 startTimer();render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
