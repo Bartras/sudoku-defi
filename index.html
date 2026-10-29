@@ -59,12 +59,40 @@ dialog .big{font-size:2.2rem;font-weight:700;margin:8px 0;font-variant-numeric:t
 dialog .row{display:flex;gap:8px;margin-top:14px}
 dialog .row button{flex:1}
 .primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+#menu{width:min(92vw,460px);display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:left}
+.card h2{margin:0 0 4px;font-size:1.05rem}
+.card p{margin:0 0 10px;color:var(--muted);font-size:.85rem}
+button.big{display:block;width:100%;text-align:left;padding:12px 14px}
+button.big b{display:block;font-size:1rem}
+button.big span{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+button.big em{display:block;font-style:normal;font-size:.8rem;margin-top:4px;color:var(--accent)}
+button.big em.ok{color:var(--ok)}
+#levels{display:grid;gap:8px}
+#menu .card>button+button{margin-top:8px}
+.top{display:flex;justify-content:space-between;width:min(92vw,460px);margin-bottom:6px}
+.top button{padding:6px 12px;font-size:.85rem}
+[hidden]{display:none!important}
 footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
 </style>
 </head>
 <body>
-<h1>Sudoku – Le Défi</h1>
-<div class="sub">Niveau 6 · Hard · Grille n° 72 · 26 chiffres donnés</div>
+<h1>Sudoku</h1>
+<div class="sub" id="sub"></div>
+
+<div id="menu">
+  <button class="card big" id="mDaily"><b>🏆 Défi du jour</b><span>Grille n° 72 · niveau 6 (Hard) du cahier · 26 chiffres donnés</span><em id="mDailyState"></em></button>
+  <div class="card">
+    <h2>🎲 Grille aléatoire</h2>
+    <p>Choisis un niveau : chaque grille est unique et a une seule solution.</p>
+    <div id="levels"></div>
+    <button class="big" id="mResume" hidden></button>
+  </div>
+  <div id="mGen" class="sub" style="text-align:center;min-height:1.2em"></div>
+</div>
+
+<div id="game" hidden style="display:flex;flex-direction:column;align-items:center;width:100%">
+<div class="top"><button id="bMenu">← Menu</button><button id="bLink" hidden>🔗 Lien du défi</button></div>
 <div class="bar"><span>⏱ <b id="time">00:00</b></span><span>Erreurs : <b id="errs">0</b></span><span>Restant : <b id="left">0</b></span></div>
 <div id="board" role="grid" aria-label="Grille de Sudoku"></div>
 <div id="pad"></div>
@@ -78,6 +106,7 @@ footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
 <div id="tools" style="margin-top:4px">
   <button id="bReset">↺ Recommencer</button>
 </div>
+</div>
 
 <dialog id="dlg">
   <h2>🎉 Grille résolue !</h2>
@@ -88,22 +117,34 @@ footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
 
 <footer>Clavier : 1-9 saisir · flèches se déplacer · N notes · Suppr effacer · Ctrl+Z annuler</footer>
 
+<script src="engine.js"></script>
+
 <script>
-// Grille n°72 (niveau 6) — "." = case vide. Source : cahier, chiffres imprimés uniquement.
-const PUZZLE=
- ".1.8.5.4."+
- "..9..2..."+
- ".3.6....8"+
- "..49....6"+
- "..3...7.."+
- "2....43.."+
- "3....1.7."+
- "...5..4.."+
- ".2.4.9.5.";
+const E=SudokuEngine;
+const DAILY={
+  // Grille n°72 (niveau 6) — "." = case vide. Source : cahier, chiffres imprimés uniquement.
+  puzzle:
+   ".1.8.5.4."+
+   "..9..2..."+
+   ".3.6....8"+
+   "..49....6"+
+   "..3...7.."+
+   "2....43.."+
+   "3....1.7."+
+   "...5..4.."+
+   ".2.4.9.5.",
+  key:"sudoku-defi-72-v1"
+};
+const RKEY="sudoku-aleatoire-v1";
+const LEVEL_INFO={
+  facile:"≈ 40 chiffres · cases à une seule possibilité",
+  moyen:"≈ 32 chiffres · il faut repérer les chiffres uniques d'une ligne, colonne ou bloc",
+  difficile:"≈ 28 chiffres · paires et alignements à exploiter",
+  expert:"≈ 24 à 30 chiffres · techniques avancées"
+};
 
-const given=[...PUZZLE].map(c=>c==="."?0:+c);
-
-const KEY="sudoku-defi-72-v1";
+let game=null; // {kind:"daily"} | {kind:"random",level,seed}
+let given=[];
 let vals,notes,sel=-1,noteMode=false,errors=0,seconds=0,hist=[],done=false,timer=null;
 
 const $=id=>document.getElementById(id);
@@ -124,12 +165,19 @@ function fresh(){
   vals=given.slice();notes=Array.from({length:81},()=>0);
   errors=0;seconds=0;hist=[];done=false;sel=-1;
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify({vals,notes,errors,seconds,done}))}catch(e){}}
+const storeKey=()=>game.kind==="daily"?DAILY.key:RKEY;
+function save(){
+  if(!game)return;
+  const o={vals,notes,errors,seconds,done};
+  if(game.kind==="random"){o.level=game.level;o.seed=game.seed;o.started=vals.some((v,i)=>v&&!given[i]);}
+  try{localStorage.setItem(storeKey(),JSON.stringify(o))}catch(e){}
+}
+function readSave(key){try{const s=JSON.parse(localStorage.getItem(key));if(s&&s.vals&&s.vals.length===81)return s;}catch(e){}return null}
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(KEY));
-    if(s&&s.vals&&s.vals.length===81){vals=s.vals;notes=s.notes;errors=s.errors;seconds=s.seconds;done=!!s.done;return true;}
-  }catch(e){}
-  return false;
+  const s=readSave(storeKey());
+  if(!s)return false;
+  if(game.kind==="random"&&(s.level!==game.level||s.seed!==game.seed))return false;
+  vals=s.vals;notes=s.notes;errors=s.errors;seconds=s.seconds;done=!!s.done;return true;
 }
 function fmt(s){return String(s/60|0).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
 
@@ -208,7 +256,7 @@ function win(){
   done=true;clearInterval(timer);save();
   $("msg").textContent="Grille résolue en "+fmt(seconds)+" !";$("msg").className="win";
   $("dTime").textContent=fmt(seconds);
-  $("dInfo").textContent=errors+" erreur"+(errors>1?"s":"");
+  $("dInfo").textContent=errors+" erreur"+(errors>1?"s":"")+" · "+title();
   $("dlg").showModal();
 }
 function check(){
@@ -220,6 +268,7 @@ function check(){
 }
 function reset(){
   if(!confirm("Recommencer la grille depuis zéro ?"))return;
+  $("dlg").open&&$("dlg").close();
   fresh();$("msg").textContent="";$("msg").className="";save();startTimer();render();
 }
 function startTimer(){
@@ -231,11 +280,16 @@ $("bNotes").onclick=()=>{noteMode=!noteMode;render()};
 $("bUndo").onclick=undo;$("bErase").onclick=erase;$("bCheck").onclick=check;$("bReset").onclick=reset;
 $("bClose").onclick=()=>$("dlg").close();
 $("bShare").onclick=async()=>{
-  const t="J'ai résolu le Sudoku n°72 (niveau 6, Hard) en "+fmt(seconds)+" avec "+errors+" erreur"+(errors>1?"s":"")+". À toi de faire mieux ! "+location.href;
+  const t="J'ai résolu le Sudoku « "+title()+" » en "+fmt(seconds)+" avec "+errors+" erreur"+(errors>1?"s":"")+". À toi de faire mieux ! "+shareUrl();
   try{await navigator.clipboard.writeText(t);$("bShare").textContent="Copié ✔";}catch(e){prompt("Copie ce texte :",t);}
+};
+$("bLink").onclick=async()=>{
+  try{await navigator.clipboard.writeText(shareUrl());$("bLink").textContent="Copié ✔";}catch(e){prompt("Copie ce lien :",shareUrl());}
+  setTimeout(()=>$("bLink").textContent="🔗 Lien du défi",1500);
 };
 
 document.addEventListener("keydown",e=>{
+  if(!game)return;
   if(e.ctrlKey||e.metaKey){if(e.key.toLowerCase()==="z"){e.preventDefault();undo();}return;}
   if(/^[1-9]$/.test(e.key))input(+e.key);
   else if(e.key==="Backspace"||e.key==="Delete"||e.key==="0")erase();
@@ -249,9 +303,70 @@ document.addEventListener("keydown",e=>{
   }
 });
 
-if(!load())fresh();
-if(done){$("msg").textContent="Grille résolue en "+fmt(seconds)+" !";$("msg").className="win";}
-startTimer();render();
+// ---------- Menu et sélection de partie ----------
+const LVL=E.LEVELS;
+const title=()=>game.kind==="daily"?"Défi du jour (grille n° 72)":"Grille aléatoire "+LVL[game.level].label+" #"+game.seed;
+const shareUrl=()=>game.kind==="daily"?location.origin+location.pathname:location.origin+location.pathname+"#g="+game.level+"-"+game.seed;
+
+function stateLabel(s,el){
+  el.className=s&&s.done?"ok":"";
+  el.textContent=!s?"Pas encore commencée":s.done?"✔ Résolue en "+fmt(s.seconds):"En cours · "+fmt(s.seconds);
+}
+function showMenu(){
+  if(game){save();clearInterval(timer);}
+  game=null;$("dlg").open&&$("dlg").close();
+  $("game").hidden=true;$("menu").hidden=false;
+  $("sub").textContent="Choisis une partie";
+  history.replaceState(null,"",location.pathname);
+  stateLabel(readSave(DAILY.key),$("mDailyState"));
+  const r=readSave(RKEY),b=$("mResume");
+  b.hidden=!r||!LVL[r.level];
+  if(!b.hidden)b.innerHTML="<b>▶ Reprendre la grille aléatoire</b><span>"+LVL[r.level].label+" #"+r.seed+"</span><em></em>",stateLabel(r,b.querySelector("em"));
+}
+function openGame(g,puzzleStr){
+  game=g;given=[...puzzleStr].map(c=>c==="."?0:+c);
+  fresh();if(!load())fresh();
+  $("menu").hidden=true;$("game").hidden=false;$("mGen").textContent="";
+  $("bLink").hidden=g.kind==="daily";
+  $("sub").textContent=g.kind==="daily"?"Défi du jour · Grille n° 72 · niveau 6 (Hard) · 26 chiffres donnés"
+    :"Grille aléatoire · "+LVL[g.level].label+" · #"+g.seed+" · "+given.filter(x=>x).length+" chiffres donnés";
+  $("msg").textContent=done?"Grille résolue en "+fmt(seconds)+" !":"";$("msg").className=done?"win":"";
+  if(g.kind==="random")history.replaceState(null,"","#g="+g.level+"-"+g.seed);
+  save();startTimer();render();
+}
+function startRandom(level,seed){
+  $("mGen").textContent="Génération de la grille…";
+  setTimeout(()=>{ // laisse le navigateur afficher le message avant le calcul
+    const {puzzle}=E.generate(level,seed);
+    openGame({kind:"random",level,seed},puzzle.map(v=>v||".").join(""));
+  },30);
+}
+function newRandom(level){
+  const r=readSave(RKEY);
+  if(r&&!r.done&&r.started&&!confirm("Une grille aléatoire est en cours : l'abandonner pour une nouvelle ?"))return;
+  startRandom(level,1+Math.floor(Math.random()*999999));
+}
+
+for(const k of Object.keys(LVL)){
+  const b=document.createElement("button");b.className="big";
+  b.innerHTML="<b>"+LVL[k].label+"</b><span>"+LEVEL_INFO[k]+"</span>";
+  b.onclick=()=>newRandom(k);$("levels").appendChild(b);
+}
+$("mDaily").onclick=()=>openGame({kind:"daily"},DAILY.puzzle);
+$("mResume").onclick=()=>{const r=readSave(RKEY);startRandom(r.level,r.seed);};
+$("bMenu").onclick=showMenu;
+window.addEventListener("pagehide",()=>{if(game)save()});
+
+// Lien de défi : #g=niveau-graine
+function fromHash(){
+  const m=/^#g=(\w+)-(\d+)$/.exec(location.hash);
+  if(!m||!LVL[m[1]])return false;
+  if(game&&game.kind==="random"&&game.level===m[1]&&game.seed===+m[2])return true;
+  if(game)save();
+  startRandom(m[1],+m[2]);return true;
+}
+window.addEventListener("hashchange",fromHash);
+if(!fromHash())showMenu();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
