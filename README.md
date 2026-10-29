@@ -16,6 +16,8 @@ Simple, sans compte, sans publicité, et qui marche même sans connexion.
 - **Annuler** autant d'actions que nécessaire, **Effacer** une case, **Recommencer** la grille.
 - **Aides visuelles** : ligne, colonne et bloc de la case sélectionnée, mise en évidence des chiffres identiques, nombre de chiffres restants à placer sur chaque touche.
 - **Doublons signalés en direct** (ligne, colonne ou bloc) et bouton **Vérifier**.
+- **Indice** (💡, +30 s au chrono) : signale d'abord une case incorrecte s'il y en a une, sinon révèle la case sélectionnée (ou la plus facile). Les cases révélées sont en vert et verrouillées.
+- **Classement** : les 10 meilleurs temps par catégorie (défi du jour, Facile, Moyen, Difficile, Expert), avec erreurs et indices. Il est stocké sur l'appareil, il n'est pas partagé entre joueurs.
 - **Chrono** et **compteur d'erreurs** (un doublon créé = une erreur).
 - **Résultat à partager** : à la fin, un bouton copie un message avec le temps et les erreurs, à renvoyer à son adversaire.
 - **Partie sauvegardée** automatiquement dans le navigateur : on peut fermer la page et reprendre plus tard.

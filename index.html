@@ -33,6 +33,16 @@ h1{margin:4px 0 0;font-size:1.5rem}
 .cell{position:relative;display:flex;align-items:center;justify-content:center;font-size:clamp(1.2rem,5.6vw,1.9rem);
   border:1px solid var(--line);cursor:pointer;color:var(--user)}
 .cell.g{color:var(--given);font-weight:700}
+.cell.h{color:var(--ok);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chips button{padding:5px 10px;font-size:.8rem;border-radius:99px}
+.chips button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+#boardList{list-style:none;margin:0;padding:0;text-align:left;font-variant-numeric:tabular-nums}
+#boardList li{display:flex;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line);align-items:baseline}
+#boardList li.me{background:var(--peer);font-weight:700}
+#boardList .t{font-weight:700;min-width:3.4em}
+#boardList .m{color:var(--muted);font-size:.8rem;flex:1}
+dialog#dBoard{width:min(92vw,400px)}
 .cell:nth-child(9n+3),.cell:nth-child(9n+6){border-right:2px solid var(--thick)}
 .cell:nth-child(n+19):nth-child(-n+27),.cell:nth-child(n+46):nth-child(-n+54){border-bottom:2px solid var(--thick)}
 .cell.peer{background:var(--peer)}
@@ -88,6 +98,7 @@ footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
     <div id="levels"></div>
     <button class="big" id="mResume" hidden></button>
   </div>
+  <button class="card big" id="mBoard"><b>🏅 Classement</b><span>Tes meilleurs temps sur cet appareil</span></button>
   <div id="mGen" class="sub" style="text-align:center;min-height:1.2em"></div>
 </div>
 
@@ -104,9 +115,17 @@ footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
 </div>
 <div id="msg"></div>
 <div id="tools" style="margin-top:4px">
+  <button id="bHint">💡 Indice (+30 s)</button>
   <button id="bReset">↺ Recommencer</button>
 </div>
 </div>
+
+<dialog id="dBoard">
+  <h2>🏅 Classement</h2>
+  <div class="chips" id="boardChips"></div>
+  <ol id="boardList"></ol>
+  <div class="row"><button id="bBoardClear">Effacer</button><button id="bBoardClose" class="primary">Fermer</button></div>
+</dialog>
 
 <dialog id="dlg">
   <h2>🎉 Grille résolue !</h2>
@@ -145,7 +164,7 @@ const LEVEL_INFO={
 
 let game=null; // {kind:"daily"} | {kind:"random",level,seed}
 let given=[];
-let vals,notes,sel=-1,noteMode=false,errors=0,seconds=0,hist=[],done=false,timer=null;
+let vals,notes,hinted,hints=0,sol=null,sel=-1,noteMode=false,errors=0,seconds=0,hist=[],done=false,timer=null;
 
 const $=id=>document.getElementById(id);
 const board=$("board");
@@ -162,13 +181,13 @@ for(let n=1;n<=9;n++){
 }
 
 function fresh(){
-  vals=given.slice();notes=Array.from({length:81},()=>0);
+  vals=given.slice();notes=Array.from({length:81},()=>0);hinted=Array(81).fill(0);hints=0;
   errors=0;seconds=0;hist=[];done=false;sel=-1;
 }
 const storeKey=()=>game.kind==="daily"?DAILY.key:RKEY;
 function save(){
   if(!game)return;
-  const o={vals,notes,errors,seconds,done};
+  const o={vals,notes,hinted,hints,errors,seconds,done};
   if(game.kind==="random"){o.level=game.level;o.seed=game.seed;o.started=vals.some((v,i)=>v&&!given[i]);}
   try{localStorage.setItem(storeKey(),JSON.stringify(o))}catch(e){}
 }
@@ -177,7 +196,7 @@ function load(){
   const s=readSave(storeKey());
   if(!s)return false;
   if(game.kind==="random"&&(s.level!==game.level||s.seed!==game.seed))return false;
-  vals=s.vals;notes=s.notes;errors=s.errors;seconds=s.seconds;done=!!s.done;return true;
+  vals=s.vals;notes=s.notes;hinted=s.hinted||Array(81).fill(0);hints=s.hints||0;errors=s.errors;seconds=s.seconds;done=!!s.done;return true;
 }
 function fmt(s){return String(s/60|0).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
 
@@ -196,7 +215,7 @@ function render(){
   for(let i=0;i<81;i++){
     const d=cells[i],v=vals[i];
     if(!v)left++;else count[v]++;
-    d.className="cell"+(given[i]?" g":"");
+    d.className="cell"+(given[i]?" g":hinted[i]?" h":"");
     if(sel>=0){
       const r=i/9|0,c=i%9,sr=sel/9|0,sc=sel%9;
       if(i===sel)d.classList.add("sel");
@@ -218,10 +237,10 @@ function render(){
 }
 
 function select(i){sel=i;render()}
-function push(){hist.push({vals:vals.slice(),notes:notes.slice(),errors});if(hist.length>200)hist.shift()}
+function push(){hist.push({vals:vals.slice(),notes:notes.slice(),hinted:hinted.slice(),errors});if(hist.length>200)hist.shift()}
 
 function input(n){
-  if(done||sel<0||given[sel])return;
+  if(done||sel<0||given[sel]||hinted[sel])return;
   push();
   if(noteMode){
     if(vals[sel]){hist.pop();return;}
@@ -240,13 +259,13 @@ function input(n){
   after();
 }
 function erase(){
-  if(done||sel<0||given[sel])return;
+  if(done||sel<0||given[sel]||hinted[sel])return;
   if(!vals[sel]&&!notes[sel])return;
   push();vals[sel]=0;notes[sel]=0;after();
 }
 function undo(){
   if(done||!hist.length)return;
-  const h=hist.pop();vals=h.vals;notes=h.notes;errors=h.errors;after(true);
+  const h=hist.pop();vals=h.vals;notes=h.notes;hinted=h.hinted;errors=h.errors;after(true);
 }
 function after(noWin){
   render();save();
@@ -256,7 +275,9 @@ function win(){
   done=true;clearInterval(timer);save();
   $("msg").textContent="Grille résolue en "+fmt(seconds)+" !";$("msg").className="win";
   $("dTime").textContent=fmt(seconds);
-  $("dInfo").textContent=errors+" erreur"+(errors>1?"s":"")+" · "+title();
+  const rank=recordScore();
+  $("dInfo").textContent=errors+" erreur"+(errors>1?"s":"")+(hints?" · "+hints+" indice"+(hints>1?"s":""):"")+" · "+title()
+    +(rank===0?" — 🏅 meilleur temps !":rank>0?" — classement : n° "+(rank+1):"");
   $("dlg").showModal();
 }
 function check(){
@@ -280,7 +301,7 @@ $("bNotes").onclick=()=>{noteMode=!noteMode;render()};
 $("bUndo").onclick=undo;$("bErase").onclick=erase;$("bCheck").onclick=check;$("bReset").onclick=reset;
 $("bClose").onclick=()=>$("dlg").close();
 $("bShare").onclick=async()=>{
-  const t="J'ai résolu le Sudoku « "+title()+" » en "+fmt(seconds)+" avec "+errors+" erreur"+(errors>1?"s":"")+". À toi de faire mieux ! "+shareUrl();
+  const t="J'ai résolu le Sudoku « "+title()+" » en "+fmt(seconds)+" avec "+errors+" erreur"+(errors>1?"s":"")+(hints?" et "+hints+" indice"+(hints>1?"s":""):"")+". À toi de faire mieux ! "+shareUrl();
   try{await navigator.clipboard.writeText(t);$("bShare").textContent="Copié ✔";}catch(e){prompt("Copie ce texte :",t);}
 };
 $("bLink").onclick=async()=>{
@@ -303,6 +324,70 @@ document.addEventListener("keydown",e=>{
   }
 });
 
+// ---------- Indice ----------
+function candCount(i){
+  let m=0;
+  for(let k=0;k<81;k++)if(vals[k]&&(E.ROW[k]===E.ROW[i]||E.COL[k]===E.COL[i]||E.BOX[k]===E.BOX[i]))m|=1<<vals[k];
+  let c=0;for(let v=1;v<=9;v++)if(!(m&(1<<v)))c++;return c;
+}
+function hint(){
+  if(done||!game)return;
+  sol=sol||E.solve(given);
+  const m=$("msg");m.className="";
+  const wrong=vals.findIndex((v,i)=>v&&!given[i]&&!hinted[i]&&v!==sol[i]);
+  seconds+=30;hints++;
+  if(wrong>=0){
+    sel=wrong;m.textContent="Indice : la case sélectionnée contient une erreur (+30 s)";
+    render();save();return;
+  }
+  let t=sel>=0&&!vals[sel]?sel:-1;
+  if(t<0){let best=10;for(let i=0;i<81;i++)if(!vals[i]){const c=candCount(i);if(c<best){best=c;t=i;}}}
+  if(t<0)return;
+  push();
+  vals[t]=sol[t];hinted[t]=1;notes[t]=0;sel=t;
+  const v=vals[t];
+  for(let k=0;k<81;k++)if(E.ROW[k]===E.ROW[t]||E.COL[k]===E.COL[t]||E.BOX[k]===E.BOX[t])notes[k]&=~(1<<v);
+  m.textContent="Indice : la case sélectionnée vaut "+v+" (+30 s)";
+  after();
+}
+$("bHint").onclick=hint;
+
+// ---------- Classement (local à l'appareil) ----------
+const SKEY="sudoku-defi-scores-v1";
+const CATS=[["daily","Défi du jour"],["facile","Facile"],["moyen","Moyen"],["difficile","Difficile"],["expert","Expert"]];
+function readScores(){try{return JSON.parse(localStorage.getItem(SKEY))||{}}catch(e){return {}}}
+function writeScores(o){try{localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}}
+function recordScore(){
+  const all=readScores(),cat=game.kind==="daily"?"daily":game.level;
+  const e={t:seconds,e:errors,h:hints,d:Date.now()};
+  const list=all[cat]=(all[cat]||[]).concat(e).sort((a,b)=>a.t-b.t||a.e-b.e||a.d-b.d);
+  all[cat]=list.slice(0,10);writeScores(all);
+  lastEntry=e;return all[cat].indexOf(e);
+}
+let lastEntry=null,boardCat="daily";
+function renderBoard(){
+  const all=readScores(),ol=$("boardList");
+  [...$("boardChips").children].forEach(b=>b.classList.toggle("on",b.dataset.c===boardCat));
+  const list=all[boardCat]||[];
+  ol.innerHTML=list.length?"":"<li><span class='m'>Aucune partie terminée dans cette catégorie.</span></li>";
+  list.forEach((e,i)=>{
+    const li=document.createElement("li");if(lastEntry&&e.t===lastEntry.t&&e.d===lastEntry.d)li.className="me";
+    const dt=new Date(e.d).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"});
+    li.innerHTML="<span>"+(["🥇","🥈","🥉"][i]||(i+1)+".")+"</span><span class='t'>"+fmt(e.t)+"</span><span class='m'>"+e.e+" erreur"+(e.e>1?"s":"")+(e.h?" · "+e.h+" indice"+(e.h>1?"s":""):"")+" · "+dt+"</span>";
+    ol.appendChild(li);
+  });
+}
+for(const [c,l] of CATS){
+  const b=document.createElement("button");b.textContent=l;b.dataset.c=c;
+  b.onclick=()=>{boardCat=c;renderBoard()};$("boardChips").appendChild(b);
+}
+$("mBoard").onclick=()=>{renderBoard();$("dBoard").showModal()};
+$("bBoardClose").onclick=()=>$("dBoard").close();
+$("bBoardClear").onclick=()=>{
+  if(!confirm("Effacer les temps de la catégorie « "+CATS.find(c=>c[0]===boardCat)[1]+" » ?"))return;
+  const all=readScores();delete all[boardCat];writeScores(all);renderBoard();
+};
+
 // ---------- Menu et sélection de partie ----------
 const LVL=E.LEVELS;
 const title=()=>game.kind==="daily"?"Défi du jour (grille n° 72)":"Grille aléatoire "+LVL[game.level].label+" #"+game.seed;
@@ -324,7 +409,7 @@ function showMenu(){
   if(!b.hidden)b.innerHTML="<b>▶ Reprendre la grille aléatoire</b><span>"+LVL[r.level].label+" #"+r.seed+"</span><em></em>",stateLabel(r,b.querySelector("em"));
 }
 function openGame(g,puzzleStr){
-  game=g;given=[...puzzleStr].map(c=>c==="."?0:+c);
+  game=g;sol=null;given=[...puzzleStr].map(c=>c==="."?0:+c);
   fresh();if(!load())fresh();
   $("menu").hidden=true;$("game").hidden=false;$("mGen").textContent="";
   $("bLink").hidden=g.kind==="daily";
