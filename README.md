@@ -89,4 +89,4 @@ Le défi du mois est défini par `MONTHLY.rows` (16 lignes de 16 nombres, 0 = ca
 
 Les grilles aléatoires viennent de `SudokuEngine.generate(niveau, graine)` : même niveau et même graine donnent la même grille. Le lien de défi est de la forme `#g=moyen-123456`. Le moteur est utilisable sous Node (`require('./engine.js')`).
 
-Le site est publié avec **GitHub Pages**. Après une modification importante, augmenter le numéro de version du cache dans `sw.js` (`sudoku-vN`) pour forcer la mise à jour chez les utilisateurs.
+Le site est publié avec **GitHub Pages**. Après une modification importante, augmenter ensemble le numéro de version du cache dans `sw.js` (`sudoku-vN` et `engine.js?v=N` dans `FILES`) et l'URL `engine.js?v=N` dans `index.html`, pour forcer la mise à jour chez les utilisateurs et éviter de mélanger deux versions des fichiers.

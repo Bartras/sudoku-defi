@@ -141,9 +141,14 @@ footer{margin-top:auto;padding-top:20px;color:var(--muted);font-size:.78rem}
 
 <footer>Clavier : 1-9 saisir (16×16 : A à G pour 10 à 16) · flèches se déplacer · N notes · Suppr effacer · Ctrl+Z annuler</footer>
 
-<script src="engine.js"></script>
+<script src="engine.js?v=6"></script>
 
 <script>
+if(!window.SudokuEngine||!SudokuEngine.geo){ // moteur périmé en cache : on purge et on recharge une seule fois
+  try{if(!sessionStorage.getItem("purged")){sessionStorage.setItem("purged","1");
+    caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>location.reload());}}catch(e){}
+  throw new Error("Moteur Sudoku périmé");
+}
 const E=SudokuEngine;
 const DAILY={
   // Grille n°72 (niveau 6) — "." = case vide. Source : cahier, chiffres imprimés uniquement.
