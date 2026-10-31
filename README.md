@@ -9,6 +9,7 @@ Simple, sans compte, sans publicité, et qui marche même sans connexion.
 
 - **Menu d'accueil** avec deux façons de jouer :
   - **Défi du jour** : la grille n° 72, niveau 6 (Hard) du cahier, 26 chiffres donnés, solution unique. C'est la grille à envoyer à un collègue.
+  - **Défi du mois** : un **Hexadoku 16×16** (blocs de 4×4, chiffres de 1 à 16), « La sfida impossibile » n° 1100 de *Settimana Sudoku*, 112 chiffres donnés, solution unique. Lien direct : `#mois`.
   - **Grille aléatoire** en 4 niveaux : Facile, Moyen, Difficile, Expert. Chaque grille est générée dans le navigateur et n'a qu'une seule solution.
 - **Lien de défi** : chaque grille aléatoire a un numéro. Le bouton « 🔗 Lien du défi » (et le message de fin de partie) donne un lien qui ouvre exactement la même grille chez l'adversaire.
 - **Saisie** au pavé numérique à l'écran ou au clavier (1 à 9).
@@ -17,7 +18,7 @@ Simple, sans compte, sans publicité, et qui marche même sans connexion.
 - **Aides visuelles** : ligne, colonne et bloc de la case sélectionnée, mise en évidence des chiffres identiques, nombre de chiffres restants à placer sur chaque touche.
 - **Doublons signalés en direct** (ligne, colonne ou bloc) et bouton **Vérifier**.
 - **Indice** (💡, +30 s au chrono) : signale d'abord une case incorrecte s'il y en a une, sinon révèle la case sélectionnée (ou la plus facile). Les cases révélées sont en vert et verrouillées.
-- **Classement** : les 10 meilleurs temps par catégorie (défi du jour, Facile, Moyen, Difficile, Expert), avec erreurs et indices. Il est stocké sur l'appareil, il n'est pas partagé entre joueurs.
+- **Classement** : les 10 meilleurs temps par catégorie (défi du jour, défi du mois, Facile, Moyen, Difficile, Expert), avec erreurs et indices. Il est stocké sur l'appareil, il n'est pas partagé entre joueurs.
 - **Chrono** et **compteur d'erreurs** (un doublon créé = une erreur).
 - **Résultat à partager** : à la fin, un bouton copie un message avec le temps et les erreurs, à renvoyer à son adversaire.
 - **Partie sauvegardée** automatiquement dans le navigateur : on peut fermer la page et reprendre plus tard.
@@ -38,7 +39,7 @@ Le défi du jour se résout, lui, avec les techniques du niveau Moyen.
 
 ## Règles
 
-- Chaque ligne, chaque colonne et chaque bloc de 3×3 contient les chiffres de 1 à 9, une seule fois.
+- Chaque ligne, chaque colonne et chaque bloc contient chaque chiffre une seule fois : de 1 à 9 dans les blocs de 3×3, de 1 à 16 dans ceux de 4×4 du défi du mois.
 - Les chiffres en **gras** sont imposés, ceux en couleur sont ceux que tu places.
 - La grille n'a qu'une solution : elle est validée dès qu'elle est complète et sans aucun doublon. La solution n'est pas stockée dans le code.
 
@@ -49,6 +50,7 @@ Le défi du jour se résout, lui, avec les techniques du niveau Moyen.
 | `1` à `9` | Saisir un chiffre (ou une note si le mode notes est actif) |
 | Flèches | Déplacer la sélection |
 | `N` | Activer / désactiver les notes |
+| `A` à `G` | En 16×16 : saisir 10 à 16 (A = 10 … G = 16) |
 | `Suppr` / `Retour arrière` | Effacer la case |
 | `Ctrl` + `Z` | Annuler |
 
@@ -82,6 +84,8 @@ python3 -m http.server 8000
 puis ouvrir `http://localhost:8000`.
 
 La grille du défi du jour est définie par `DAILY.puzzle` au début du script (81 caractères, `.` pour une case vide). Pour la changer, modifier cette chaîne, `DAILY.key` (sinon l'ancienne sauvegarde du navigateur est rechargée) et les libellés « n° 72 ».
+
+Le défi du mois est défini par `MONTHLY.rows` (16 lignes de 16 nombres, 0 = case vide). Le moteur résout les grilles 9×9 et 16×16 ; seules les grilles 9×9 sont générées aléatoirement.
 
 Les grilles aléatoires viennent de `SudokuEngine.generate(niveau, graine)` : même niveau et même graine donnent la même grille. Le lien de défi est de la forme `#g=moyen-123456`. Le moteur est utilisable sous Node (`require('./engine.js')`).
 

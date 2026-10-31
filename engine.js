@@ -24,30 +24,41 @@ function shuffle(arr,rng){
   return arr;
 }
 
+// Géométrie d'une grille n×n (n = 9 ou 16) : ligne, colonne et bloc de chaque case.
+const GEO={};
+function geo(n){
+  if(GEO[n])return GEO[n];
+  const bs=Math.round(Math.sqrt(n)),ROW=[],COL=[],BOX=[];
+  for(let i=0;i<n*n;i++){ROW[i]=i/n|0;COL[i]=i%n;BOX[i]=(ROW[i]/bs|0)*bs+(COL[i]/bs|0);}
+  return GEO[n]={n,bs,ROW,COL,BOX};
+}
+
 // Backtracking à case la plus contrainte. Compte les solutions jusqu'à `limit`.
 // Avec `rng`, l'ordre des chiffres est aléatoire (sert à tirer une grille pleine).
+// Fonctionne pour 9×9 (81 cases) et 16×16 (256 cases).
 function search(g,limit,rng){
-  const grid=g.slice(),rows=Array(9).fill(0),cols=Array(9).fill(0),boxes=Array(9).fill(0);
-  for(let i=0;i<81;i++)if(grid[i]){const b=1<<grid[i];rows[ROW[i]]|=b;cols[COL[i]]|=b;boxes[BOX[i]]|=b;}
-  let n=0,first=null;
+  const n=Math.round(Math.sqrt(g.length)),G=geo(n),R=G.ROW,C=G.COL,B=G.BOX,len=g.length,full=(1<<(n+1))-2;
+  const grid=g.slice(),rows=Array(n).fill(0),cols=Array(n).fill(0),boxes=Array(n).fill(0);
+  for(let i=0;i<len;i++)if(grid[i]){const b=1<<grid[i];rows[R[i]]|=b;cols[C[i]]|=b;boxes[B[i]]|=b;}
+  let cnt=0,first=null;
   (function rec(){
-    let best=-1,bm=0,bc=10;
-    for(let i=0;i<81;i++)if(!grid[i]){
-      const m=ALL&~(rows[ROW[i]]|cols[COL[i]]|boxes[BOX[i]]),c=popcnt(m);
+    let best=-1,bm=0,bc=n+1;
+    for(let i=0;i<len;i++)if(!grid[i]){
+      const m=full&~(rows[R[i]]|cols[C[i]]|boxes[B[i]]),c=popcnt(m);
       if(c<bc){bc=c;best=i;bm=m;if(c<=1)break;}
     }
-    if(best<0){n++;if(!first)first=grid.slice();return;}
+    if(best<0){cnt++;if(!first)first=grid.slice();return;}
     if(bc===0)return;
-    const digits=[];for(let v=1;v<=9;v++)if(bm&(1<<v))digits.push(v);
+    const digits=[];for(let v=1;v<=n;v++)if(bm&(1<<v))digits.push(v);
     if(rng)shuffle(digits,rng);
     for(const v of digits){
-      const b=1<<v;grid[best]=v;rows[ROW[best]]|=b;cols[COL[best]]|=b;boxes[BOX[best]]|=b;
+      const b=1<<v;grid[best]=v;rows[R[best]]|=b;cols[C[best]]|=b;boxes[B[best]]|=b;
       rec();
-      grid[best]=0;rows[ROW[best]]&=~b;cols[COL[best]]&=~b;boxes[BOX[best]]&=~b;
-      if(n>=limit)return;
+      grid[best]=0;rows[R[best]]&=~b;cols[C[best]]&=~b;boxes[B[best]]&=~b;
+      if(cnt>=limit)return;
     }
   })();
-  return {count:n,solution:first};
+  return {count:cnt,solution:first};
 }
 const countSolutions=(g,limit=2)=>search(g,limit,null).count;
 const randomSolution=rng=>search(Array(81).fill(0),1,rng).solution;
@@ -147,6 +158,6 @@ function generate(level,seed){
 }
 
 const solve=g=>search(g,1,null).solution;
-const api={ROW,COL,BOX,LEVELS,solve,countSolutions,randomSolution,rate,generate,mulberry32};
+const api={ROW,COL,BOX,geo,LEVELS,solve,countSolutions,randomSolution,rate,generate,mulberry32};
 if(typeof module!=="undefined"&&module.exports)module.exports=api;else root.SudokuEngine=api;
 })(typeof self!=="undefined"?self:this);
